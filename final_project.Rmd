@@ -1,0 +1,168 @@
+---
+title: Analysis of Tank Conditions and Fluorescence of Symbiodiniaceae in *Astrangia poculata* Compared to *Pocillopora damicornis*
+author: "Nate Awkerman"
+date: "5/10/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(gapminder)
+library(ggplot2)
+library(dplyr)
+library(broom)
+library(reshape2)
+```
+
+## Introduction
+
+Currently, the world's coral reefs are being threatened by multiple complex factors that make the issue extremely difficult to solve. The reason coral reefs are so vital to the world are twofold, many communities depend on the tourism that coral reefs attract and, more importantly, coral reefs play host to an estimated 2,594,000 species in the Caribbean coral reefs alone, which are said to account for only one twelth of the world's coral reef biodiversity making it the largest in the world. With over 15,000 dive sites across the world being threatened by the epidemic of coral bleaching, it is important to understand the causational mechanisms behind bleaching, or loss of the native photosynthetic symbiont (Ullman 2017, Knowlton et al. 2010). The reason for this is because the symbiont provides photorespiration to the host coral thereby providing a carbon source and source of energy without which the coral cannot survive. This leads to tissue lysis and subsequent skeletal collapse resulting in the loss of the habitat that sustained previously mentioned biodiversity. This study aims to combine the datasets of two previous experiments, one from a paper by Ben-Haim et al. (2003) on *Pocillopora damicornis* bleaching after pathogen exposure and the other on *Astrangia poculata* acclimation to different environmental conditions performed at the University of Rhode Island. 
+
+There are three main theories that propose an explanation for the loss of coral symbiont. The first is microplastics in the water cause a stress response and lead to increased reactive oxygen species production while the second is that elevated temperatures place too much functional burden on the symbiont. The third theory and the one this paper is most concerned with is the pathogenic theory of coral bleaching which suggests a *Vibrio* species is causing death of the symbiont within the coral itself after colonizing it. The aim of the comparison is to hopefully gain some idea of how *Pocillopora damicornis*, a tropical reef forming Scleractinian coral, regulates and requires its symbiont to prevent tissue lysis due to bleaching contrasted with *Astrangia poculata*, a temperate coral that is facultative towards its symbiont. As *A. poculata* does not require its symbiont to function and therefore is capable of dark respiration opposed to photorespiration, it is likely that they would have a much lower symbiont density even in densely populated samples when compared to *P. damicornis* which will die shortly after bleaching (Ben-Haim et al. 2003). As the *A. poculata* does not die from loss of symbiont, there will be no significant comparison based on lysis alone, rather the comparison will focus on how essential the symbiont is to both species (Burmester 2017). 
+
+```{r data, include=FALSE}
+bleaching <- read_csv("pocillopora_bleaching.csv")
+tank_conditions <- read_csv("Total_pH.csv")
+fluorometry <- read_csv("PAM_Apoc2019.csv")
+p_fluorometry <- read_csv("pocillopora_fluorescence.csv")
+
+trim_bleach <- subset(bleaching, select = -c(Total) )
+long_bleach <- melt(trim_bleach, id.var=c("Temp","Days")) %>% group_by(Days)
+```
+
+## Data Analysis
+
+### Death of *Pocillopora damicornis* following infection with *Vibrio coralliilyticus* YB1
+
+```{r pressure, echo=FALSE}
+coral_survival <- ggplot(long_bleach, aes(x = Temp, y = value, fill = variable)) + 
+  geom_bar(position = "fill",stat = "identity") + 
+  scale_y_continuous(labels = scales::percent_format()) + facet_wrap("Days") +
+  ylab("Percent") + ggtitle("Percent of Pocillopora by Health Status post Infection \nafter a Number of Days")
+plot(coral_survival)
+```
+
+Figure 1: The above graph is a representation of coral fragment survival of *Pocillopora damicornis* after infection with 10µl of 1e7 *Vibrio Coralliilyticus* YB1. The control represents 30 samples uninoculated at 29 degrees Celsius. 
+
+As can be seen, coral fragment survival after infection is 100% until 24.5 degrees Celsius and 25 degrees Celsius which show a decrease in the percent of healthy fragments and an increase in bleached fragments after 15 days. However, the coral samples at the 25 degrees Celsius condition shows recovery by day 25 while the samples at 24.5 degrees Celsius remained bleached. More interesting however, is the almost immediate coral tissue degredation by day 10 in the 27 degrees Celsius and 29 degrees Celsius conditions and death of all samples in those conditions. This is explained due to highly elevated levels of protease production and activity from the *V. coralliilyticus* between the temperature ranges of 24 degrees Celsius and 29 degrees Celsius, further supporting a potential bacterial and temperature related basis for symbiont death and reef collapse. This is further supported due to the fact that all of the control samples were monitored at 29 degrees Celsius meaning the presence of the pathogen, and the zinc-metalloproteases by extension, were necessary to achieve coral lysis as temperature alone did not cause any change. 
+
+### Astrangia poculata Tank Conditions During the Progression of Environmental Adaptation Experiment
+
+```{r tank, echo=FALSE}
+filtered_tank <- select(tank_conditions,-"Fed..Y.N.") %>% 
+  filter(complete.cases(.)) %>% filter(pH.mV <= 0) %>% group_by(Tank)
+
+
+filtered_tank$Days = 0
+for (i in 1:length(filtered_tank$Date)) {
+  filtered_tank$Days[i] = filtered_tank$Date[i] - 20190403
+}
+
+temp <- ggplot(filtered_tank, aes(x=Days, y=Temp.C)) +
+  geom_point() + facet_wrap("Tank") + geom_smooth(method = "lm")  
+
+sal_to_ph <- ggplot(filtered_tank, aes(x=Sal.psu, y=pH.mV)) +
+  geom_point() + facet_wrap("Tank") + geom_smooth(method = "lm") 
+
+regression_temp = do(filtered_tank, 
+  glance(lm(Temp.C ~ Days, data = .)))
+
+regression_sal_ph = do(filtered_tank, 
+  glance(lm(pH.mV ~ Sal.psu, data = .)))
+
+plot(temp)
+```
+Figure 2: The above graph is simply to demonstrate that temperature of the tanks holding samples of *Astrangia poculata* for both acclimation and then further experiments did not change based on time and stayed consistent regardless of the heat of the external environment. The temperature was maintained at a consistent 19 degrees Celsius with little variation in either direction. The r-squared values for each tank are `r  {regression_temp$r.squared[which(regression_temp[1] == "1")]}`, `r  {regression_temp$r.squared[which(regression_temp[1] == "2")]}`, `r  {regression_temp$r.squared[which(regression_temp[1] == "3")]}`, `r  {regression_temp$r.squared[which(regression_temp[1] == "4")]}`, `r  {regression_temp$r.squared[which(regression_temp[1] == "5")]}`, `r  {regression_temp$r.squared[which(regression_temp[1] == "6")]}` in increasing order. As none of the presented r-squared values indicate significance it can be assumed that time in the greenhouse did not affect the temperatures of the tank and were instead kept consistent. 
+
+```{r salt, echo=FALSE}
+plot(sal_to_ph)
+```
+Figure 3: was found that changes in tank salinity due to evaporation did not adversely affect the pH of the tanks, a factor that could have potentially changed respiratory conditions of the coral. It is most likely that any changes in the pH, which was measured in mV, was most likely due to the byproducts of respiration from the coral and skeletal commensal organisms in the holobiont rather than changes in salinity as they are not only inconsistent but also not significant. This can be determined from the R-squared values for each tank `r  {regression_sal_ph$r.squared[which(regression_sal_ph[1] == "1")]}`, `r  {regression_sal_ph$r.squared[which(regression_sal_ph[1] == "2")]}`, `r  {regression_sal_ph$r.squared[which(regression_sal_ph[1] == "3")]}`, `r  {regression_sal_ph$r.squared[which(regression_sal_ph[1] == "4")]}`, `r  {regression_sal_ph$r.squared[which(regression_sal_ph[1] == "5")]}`, `r  {regression_sal_ph$r.squared[which(regression_sal_ph[1] == "6")]}` which indicate no significant relationship between the two variables meaning there was likely no adverse affects due to evaporation since pH was of the greatest concern in that regard. Additionally changes in salinity due to evaporation were very minor and did not effect the experiment. 
+
+In order to provide a consistent environment for the coral to adapt to and grow in, tank conditions were heavily monitored throughout the experiment. 48 *A. poculata* samples were acclimated to 19 degrees Celsius from 8 degrees Celsius, increasing the temperature in the tanks by 1 degree Celsius until the optimal temperature was achieved. Then the salinity, temperature, pH, and light levels were monitored for the course of the experiment which lasted 14 days. The salinity was measured as psu or Practical Salinity Units while pH was measured in mV. The pH sensor was non-functional for the first two days of the experiment so that data has been omitted from the above figures since no comparison could be established for those days with missing data. The light level was measured in Photosynthetically Active Radiation units or PARs to determine how much natural light was available in the spectrum of 400 to 700 nm. This value fluctuated significantly due to the fact that the only determining factor was the condition of the weather and thus no relationship could be established for PAR as all samples had identical natural light exposure except for the conditions that were kept purposely dark (Lesser et al. 1990). 
+
+### Maximal Photochemical efficiency of *Astrangia poculata* symbiont *Breviolum psygmophilum* after acclimation to varying conditions
+
+```{r a_fluor, echo=FALSE}
+filtered_fluor <- fluorometry %>% filter(complete.cases(.)) %>% group_by(T0.Color)
+filtered_fluor[12] <- lapply(filtered_fluor[12], as.numeric)
+
+fluor_plot <- ggplot(filtered_fluor) + 
+  geom_point(aes(x=Exp.Cond, y=Y, color=Timepoint)) + xlab("Experimental Condition") +
+  ylab("Maximal PSII photochemical efficiency") + ggtitle("Maximal Photochemical Efficienty of Photosystem II in \nBreviolum psygmophilum Under Different Conditions")
+
+
+nlt1 <- filtered_fluor %>% .[which(filtered_fluor$Exp.Cond=="No.Light"),] %>%
+  filter(Timepoint=="T1") 
+nlt2 <- filtered_fluor %>% .[which(filtered_fluor$Exp.Cond=="No.Light"),] %>%
+  filter(Timepoint=="T2")
+lt1 <- filtered_fluor %>% .[which(filtered_fluor$Exp.Cond=="Light"),] %>%
+  filter(Timepoint=="T1")
+lt2 <- filtered_fluor %>% .[which(filtered_fluor$Exp.Cond=="Light"),] %>%
+  filter(Timepoint=="T2")
+lft1 <- filtered_fluor %>% .[which(filtered_fluor$Exp.Cond=="Light.Feed"),] %>%
+  filter(Timepoint=="T1")
+lft2 <- filtered_fluor %>% .[which(filtered_fluor$Exp.Cond=="Light.Feed"),] %>%
+  filter(Timepoint=="T2")
+
+time_nolight <- t.test(nlt1$Y,nlt2$Y)$p.value
+time_light <- t.test(lt1$Y,lt2$Y)$p.value
+time_lightfeed <- t.test(lft1$Y,lft2$Y)$p.value
+nl_l <- t.test(nlt2$Y,lt2$Y)$p.value
+nl_lf <- t.test(nlt2$Y,lft2$Y)$p.value
+plot(fluor_plot)
+```
+Figure 4: the above is representative of the maximal photochemical efficiency of photosystem II of *Breviolum psygmophilum* between two time points at three different conditions. 
+
+This data was obtained with Pulse-Amplitude-Modulation (PAM) fluorometry to measure activity of photosystem II. PAM fluorometry gives 1µsec pulses of light at 650 nm in order to measure the photochemical efficiency of the photosynthetic dinoflagellete symbiont. This will produce two values, a minimal fluorescence value (Fo) and a maximal fluorescence value (Fm) which can be used to calculate efficiency of PSII. This is calculated using this formula (Fm-Fo)/Fm (Beer, 1998).
+
+The three different levels of treatment in this study were consistent light exposure with no additional feeding denoted as "Light", consistent light exposure with the additional feeding of the coral with frozen brine shrimp denoted as "Light.Feed", and a condition with neither light exposure nor food denoted as "No.Light". This was to test gene regulation and photochemical efficiency under each condition at the start of the experiment (T1) and 14 days later at the end of the experiment (T2). It was found that the "No.Light" had the highest overall maximal efficiency at T2 and was found to be significantly different compared to the T1 measurement with a p-value of `r time_nolight`. This is likely due to dark adaptation opening all PSII centres and no Non-Photochemical Quenching to protect against high light intensity meaning more of the sensory light can cause fluorescence. It was also found to be statistically different from the T2 timepoints of the other conditions which had a p-value of $`r nl_l`$ against the light exposure condition and a p-value of $`r nl_lf`$ against the light and food condition. This indicates that dark adaptation may be necessary to fully analyze any affects on the Symbiodiniaceae based on environmental conditions in order to get optimal and consistent readings. 
+
+### Maximum Fluorescence of *Astrangia poculata* compared to *Pocillopora damicornis*
+
+```{r b_fluor, echo=FALSE}
+filtered_fluor <- filter(filtered_fluor, T0.Color!="Light")
+fluor_compare <- ggplot() + geom_jitter(data=filtered_fluor, aes(x=T0.Color, y=Fm, color="Astrangia")) +
+  geom_jitter(data=p_fluorometry, aes(x=T0.Color, y=Fm, color="Pocillopora")) + 
+  xlab("Coral Bleaching Status") + ylab("Maximal Fluorescence") +
+  ggtitle("Maximal Fluorescence of Pocillopora damicornis \nand Astrangia poculata")
+
+a_dark_filt <- filtered_fluor %>% filter(T0.Color == "Dark")
+p_dark_filt <- p_fluorometry %>% filter(T0.Color == "Dark")
+a_semi_filt <- filtered_fluor %>% filter(T0.Color == "Semi")
+p_semi_filt <- p_fluorometry %>% filter(T0.Color == "Semi")
+
+ap_dark <- t.test(a_dark_filt$Fm,p_dark_filt$Fm)$p.value
+ap_semi <- t.test(a_semi_filt$Fm,p_semi_filt$Fm)$p.value
+aa <- t.test(a_dark_filt$Fm,a_semi_filt$Fm)$p.value
+pp <- t.test(p_dark_filt$Fm,p_semi_filt$Fm)$p.value
+
+plot(fluor_compare)
+```
+Figure 5: Comparison between the maximal fluorescence values reported for *Pocillopora damicornis* samples both control and semi bleached and the *Astrangia poculata* of both phenotypes. As can be seen, the blue labeled *P. damicornis* samples have significantly more maximal fluorescence from PAM fluorometry data compared to the red labeled temperate coral samples of comparable size. 
+
+When comparing the maximal fluorescence of *P. damicornis* and *A. poculata* it can be observed from Figure 5 that there is significantly more fluorescence produced in the dark symbiotic control samples of the tropical coral compared to the dark symbiotic samples of the temperate coral. When performing a two-factor significance t-test between the maximal fluorescence of both sample groups, the result is a p-value of $`r ap_dark`$ which is well below the standard cutoff range of 0.05 indicating that there is a significant difference between the two groups. For the semi-bleached samples of coral, there does not seem to be a significant difference between groups with a p-value of $`r ap_semi`$ however this would suggest a much large loss of photosynthetic potential in the *P. damicornis* than in the *A. poculata*. When compared in a two-factor statistical test the p-value between the two types tropical coral is $`r pp`$ indicating the aforementioned loss of function is significant between the two groups. The *A. poculata* does not seem to have a similar difference between its symbiotic and partially bleached forms with a p-value of $`r aa`$. This would indicate that the *P. damicornis* has much denser symbiont population and that color change is a more indicative observation of symbiont loss in tropical coral that are more dependent on their symbiont for photorespiration. 
+
+## Discussion
+
+This comparative study would suggest that the hypothesis of *P. damicornis* being more affected by loss of its symbiont than the more temparate *A. poculata* is supported due to the much more drastic loss of photochemical efficiency in the tropical coral coupled with its rate of tissue lysis after infection with YB1. Additionally, further studies can be conducted such as the infection of *A. poculata* with *V. coralliilyticus* YB1 or a more novel strain that hasn't been shown to kill coral or Symbiodiniaceae yet like RE22 which causes vibriosis in bivalves and oysters (Spinard et al. 2015). This would provide a more apt comparison and show whether or not the pathogenic bacteria is directly virulent against the coral tissue or whether it interacts with the symbiont through the secretion of proteases and kills only those coral species unable to survive without significant amounts of photorespiration. If *A. poculata* is able to survive infection with a pathogenic bacteria, it is likely that a protective mechanism may be identified in either its genome, owing to its facultative nature, or potentially within its microbiome, in the form of a probiotic organism.
+
+# References
+
+*Astrangia poculata* data was collected in collaboration with Kevin Wong and the lab of Dr. Hollie Putnam as part of the University of Rhode Island. 
+
+
+1. Beer, S., Ilan, M., Eshel, A., Weil, A., & Brickner, I. (1998). Use of pulse amplitude modulated (PAM) fluorometry for in situ measurements of photosynthesis in two Red Sea faviid corals. Marine Biology, 131(4), 607–612. https://doi.org/10.1007/s002270050352
+2. Ben-Haim, Y., Zicherman-Keren, M., & Rosenberg, E. (2003). Temperature-Regulated Bleaching and Lysis of the Coral Pocillopora damicornis by the Novel Pathogen Vibrio coralliilyticus. Applied and Environmental Microbiology, 69(7), 4236–4242. https://doi.org/10.1128/AEM.69.7.4236-4242.2003
+3. Burmester, E. (2017). Insights into coral recovery based on symbiont state and environmental conditions in the temperate, facultatively symbiotic coral Astrangia poculata. Retrieved from https://open.bu.edu/handle/2144/27365
+4. Knowlton, N., Brainard, R. E., Fisher, R., Moews, M., Plaisance, L., & Caley, M. J. (2010). Coral Reef Biodiversity. In Life in the World’s Oceans (pp. 65–78). https://doi.org/10.1002/9781444325508.ch4
+5. Lesser, M. P., Stochaj, W. R., Tapley, D. W., & Shick, J. M. (1990). Bleaching in coral reef anthozoans: effects of irradiance, ultraviolet radiation, and temperature on the activities of protective enzymes against active oxygen. Coral Reefs, 8(4), 225–232. https://doi.org/10.1007/BF00265015
+6. Spinard, E., Kessner, L., Gomez-Chiarri, M., Rowley, D. C., & Nelson, D. R. (2015). Draft Genome Sequence of the Marine Pathogen Vibrio coralliilyticus RE22. Genome Announcements, 3(6). https://doi.org/10.1128/genomeA.01432-15
+7. Ullman, K. (2017, May 21). Coral Reef Tourism Is Worth 36 Billion To The Travel Industry And Host Nations Every Year. Retrieved May 10, 2019, from The Nature Conservancy website: https://www.nature.org/en-us/explore/newsroom/coral-reef-tourism-is-worth-36-billion-to-the-travel-industry-and-host-natio/
+
+
+
+
+
+
+
